@@ -178,7 +178,7 @@ App.main = async function (applicationArguments) {
             startY += 15;
         }
         // title
-        addSimpleText(dataGroup, width / 2, 10 - (margin.top / 2), "12pt", data[0].taskMeasurementNumber, "black");
+        addSimpleText(dataGroup, width / 2, 10 - (margin.top / 2), "12pt", data[0].taskMeasurementName, "black");
         // y axis legend
         addSimpleText(dataGroup, 0 - margin.top / 2, 0 - (margin.top / 2) + 10, "12pt", "Results (ms)", "black");
 
