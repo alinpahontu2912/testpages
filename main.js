@@ -60,8 +60,7 @@ App.main = async function (applicationArguments) {
 
     function plotVariable(dataGroup, color, data, x, y, flavor, taskMeasurementNumber) {
         var className = flavor + taskMeasurementNumber;
-        var flavorGroup = dataGroup.append("g");
-        flavorGroup
+        dataGroup.append("g")
             .append("path")
             .attr("class", className)
             .datum(data)
@@ -72,26 +71,14 @@ App.main = async function (applicationArguments) {
                 .x(function (d) { return x(new Date(d.commitTime)); })
                 .y(function (d) { return y(+d.minTime); })
             );
-        flavorGroup
-            .append("path")
-            .attr("class", className)
-            .datum(data)
-            .attr("fill", color)
-            .style("opacity", "0.3")
-            .attr("stroke", "none")
-            .attr("d", d3.area().curve(d3.curveMonotoneX)
-                .x(function (d) { return x(new Date(d.commitTime)) })
-                .y0(function (d) { return y(d.CI_right) })
-                .y1(function (d) { return y(d.CI_left) })
-        );
-
 
     }
 
-    function addSimpleText(dataGroup, xCoord, yCoord, textSize, text, color) {
+    function addSimpleText(dataGroup, xCoord, yCoord, textSize, text, color, rotation = 0) {
         return dataGroup.append("g")
             .append("text")
             .text(text)
+            .attr("transform", `rotate(${rotation})`)
             .attr("font-size", textSize)
             .attr("fill", color)
             .attr("text-anchor", "middle")
@@ -132,7 +119,7 @@ App.main = async function (applicationArguments) {
             .attr("y", yCoord)
             .on("click", function () {
                 var visibility = d3.select(lineClass).style("visibility");
-                d3.selectAll(lineClass).transition().style("visibility", visibility === "visible" ? "hidden" : "visible");
+                d3.select(lineClass).transition().style("visibility", visibility === "visible" ? "hidden" : "visible");
                 d3.select(circleClass).transition().style("visibility", visibility === "visible" ? "hidden" : "visible");
                 var textStyle = d3.select(this).style("text-decoration");
                 d3.select(this).transition().style("text-decoration", textStyle === "line-through" ? "none" : "line-through");
@@ -146,19 +133,16 @@ App.main = async function (applicationArguments) {
         const height = 400 - margin.top - margin.bottom;
 
         // create div and add styling to it
-        var dataGroup = d3.select("#graphs")
+        var collapsible = d3.select("#graphs")
             .append("div")
-            .append("svg")
+            .append("details");
+        collapsible.append("summary")
+            .html(data[0].taskMeasurementName);
+        var dataGroup = collapsible.append("svg")
             .attr("width", width + margin.left + margin.right)
             .attr("height", height + margin.top + margin.bottom)
             .append("g")
             .attr("transform", `translate(${margin.left},${margin.top})`);
-
-        data.forEach(function (point) {
-            point.CI_left = point.minTime * 0.97;
-            point.CI_right = point.minTime * 1.03;
-        }
-        );
 
         // get data by flavor
         var filteredData = mapByFlavor(data);
@@ -199,10 +183,10 @@ App.main = async function (applicationArguments) {
             addLegendContent(legend, width + 40, startY, colors[i], flavors[i], escapedFlavor, taskMeasurementNumber);
             startY += 15;
         }
-        // title
-        addSimpleText(dataGroup, width / 2, 10 - (margin.top / 2), "12pt", data[0].taskMeasurementName, "black");
+        // chart title
+        // addSimpleText(dataGroup, width / 2, 10 - (margin.top / 2), "12pt", data[0].taskMeasurementName, "black");
         // y axis legend
-        addSimpleText(dataGroup, 0 - margin.top / 2, 0 - (margin.top / 2) + 10, "12pt", "Results (ms)", "black");
+        addSimpleText(dataGroup, - margin.left, - margin.top, "15pt", "Results (ms)", "black", -90);
 
         // draw axis 
         yAxis(yAxisGroup);
@@ -219,7 +203,7 @@ App.main = async function (applicationArguments) {
     var data = JSON.parse(value);
     var wantedData = getLastDaysData(data, 14);
     var flavors = getFlavors(data);
-    const margin = { top: 60, right: 120, bottom: 80, left: 80 };
+    const margin = { top: 60, right: 120, bottom: 80, left: 120 };
     for (var i = 0; i < 24; i++) {
         var firstTry = getWantedTestResults(wantedData, i);
         buildGraph(firstTry, flavors, 14, margin, i);
