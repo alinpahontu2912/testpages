@@ -60,17 +60,31 @@ App.main = async function (applicationArguments) {
 
     function plotVariable(dataGroup, color, data, x, y, flavor, taskMeasurementNumber) {
         var className = flavor + taskMeasurementNumber;
-        dataGroup.append("g")
+        var flavorGroup = dataGroup.append("g");
+        flavorGroup
             .append("path")
             .attr("class", className)
             .datum(data)
             .attr("fill", "none")
             .attr("stroke", color)
-            .attr("stroke-width", 1.5)
-            .attr("d", d3.line()
+            .attr("stroke-width", 1)
+            .attr("d", d3.line().curve(d3.curveMonotoneX)
                 .x(function (d) { return x(new Date(d.commitTime)); })
                 .y(function (d) { return y(+d.minTime); })
             );
+        flavorGroup
+            .append("path")
+            .attr("class", className)
+            .datum(data)
+            .attr("fill", color)
+            .style("opacity", "0.3")
+            .attr("stroke", "none")
+            .attr("d", d3.area().curve(d3.curveMonotoneX)
+                .x(function (d) { return x(new Date(d.commitTime)) })
+                .y0(function (d) { return y(d.CI_right) })
+                .y1(function (d) { return y(d.CI_left) })
+        );
+
 
     }
 
@@ -107,6 +121,8 @@ App.main = async function (applicationArguments) {
     function addLegendContent(legend, xCoord, yCoord, color, flavor, escapedFlavor, taskMeasurementNumber) {
         var lineClass = "." + escapedFlavor + taskMeasurementNumber;
         var circleClass = "." + escapedFlavor + "circleData" + taskMeasurementNumber;
+        legend.append('input')
+            .attr('type', 'checkbox');
         legend.append("text")
             .text(flavor)
             .attr("font-size", "7pt")
@@ -116,10 +132,10 @@ App.main = async function (applicationArguments) {
             .attr("y", yCoord)
             .on("click", function () {
                 var visibility = d3.select(lineClass).style("visibility");
-                d3.select(lineClass).transition().style("visibility", visibility == "visible" ? "hidden" : "visible");
-                d3.select(circleClass).transition().style("visibility", visibility == "visible" ? "hidden" : "visible");
+                d3.selectAll(lineClass).transition().style("visibility", visibility === "visible" ? "hidden" : "visible");
+                d3.select(circleClass).transition().style("visibility", visibility === "visible" ? "hidden" : "visible");
                 var textStyle = d3.select(this).style("text-decoration");
-                d3.select(this).transition().style("text-decoration", textStyle == "line-through" ? "none" : "line-through");
+                d3.select(this).transition().style("text-decoration", textStyle === "line-through" ? "none" : "line-through");
             });
 
     }
@@ -137,6 +153,12 @@ App.main = async function (applicationArguments) {
             .attr("height", height + margin.top + margin.bottom)
             .append("g")
             .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        data.forEach(function (point) {
+            point.CI_left = point.minTime * 0.97;
+            point.CI_right = point.minTime * 1.03;
+        }
+        );
 
         // get data by flavor
         var filteredData = mapByFlavor(data);
