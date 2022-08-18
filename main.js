@@ -1,25 +1,62 @@
 ﻿import { App } from './app-support.js'
 
 App.main = async function (applicationArguments) {
-
     const regex = /[^a-zA-Z]/gi;
     const measurementsUrl = "https://raw.githubusercontent.com/radekdoulik/WasmPerformanceMeasurements/main/measurements/";
     const margin = { top: 60, right: 120, bottom: 80, left: 120 };
+    const tasksIds = {
+        0: "AppStart, Page show",
+        1: "AppStart, Reach managed",
+        2: "Exceptions, NoExceptionHandling",
+        3: "Exceptions, TryCatch",
+        4: "Exceptions, TryCatchThrow",
+        5: "Exceptions, TryCatchFilter",
+        6: "Exceptions, TryCatchFilterInline",
+        7: "Exceptions, TryCatchFilterThrow",
+        8: "Exceptions, TryCatchFilterThrowApplies",
+        9: "Json, non-ASCII text serialize",
+        10: "Json, non-ASCII text deserialize",
+        11: "Json, small serialize",
+        12: "Json, small deserialize",
+        13: "Json, large serialize",
+        14: "Json, large deserialize",
+        15: "Vector, Create Vector128",
+        16: "Vector, Add 2 Vector128's",
+        17: "Vector, Multiply 2 Vector128's",
+        18: "WebSocket, PartialSend_1B",
+        19: "WebSocket, PartialSend_64KB",
+        20: "WebSocket, PartialSend_1MB",
+        21: "WebSocket, PartialReceive_1B",
+        22: "WebSocket, PartialReceive_10KB",
+        23: "WebSocket, PartialReceive_100KB",
+        24: "Size, AppBundle",
+        25: "Size, managed",
+        26: "Size, dotnet.wasm",
+        27: "Size, icudt.dat",
+    };
+
+    class TaskData {
+        constructor(taskId, legendName, dataGroup, allData, x, y, xAxis, yAxis) {
+            this.taskId = taskId;
+            this.legendName = legendName;
+            this.allData = allData;
+            this.x = x;
+            this.y = y;
+            this.xAxis = xAxis;
+            this.yAxis = yAxis;
+            this.dataGroup = dataGroup;
+            this.startDate = null;
+            this.endDate = null;
+            this.data = [];
+        }
+    }
 
     function mapByFlavor(data) {
-        var obj = data.reduce((map, e) => ({
+        let obj = data.reduce((map, e) => ({
             ...map,
             [e.flavor]: [...(map[e.flavor] ?? []), e]
         }), {});
         return new Map(Object.entries(obj));
-    }
-
-    function getWantedTestResults(data, testNumber, numTests = 28) {
-        var array = [];
-        for (let i = testNumber; i < data.length; i += numTests) {
-            array.push(data[i]);
-        }
-        return array;
     }
 
     function getFlavors(data) {
@@ -32,26 +69,26 @@ App.main = async function (applicationArguments) {
     }
 
     function getLastDaysData(data, numOfDays) {
-        var timeDif = 1000 * 60 * 60 * 24 * numOfDays; // ms * s * mins * h * days
-        var lastTest = new Date(data[data.length - 1].commitTime);
-        var result = data.filter(x => new Date(x.commitTime) >= lastTest - timeDif);
+        let timeDif = 1000 * 60 * 60 * 24 * numOfDays;
+        let lastTest = new Date(data[data.length - 1].commitTime);
+        let result = data.filter(x => new Date(x.commitTime) >= lastTest - timeDif);
         return result;
     }
 
     function getResultsBetweenDates(allData, startDate, endDate) {
-        var result = allData.filter(function (d) {
-            var date = new Date(d.commitTime);
+        let result = allData.filter(function (d) {
+            let date = new Date(d.commitTime);
             return date.getTime() >= startDate.getTime()
                 && date.getTime() <= endDate.getTime();
         });
         return result;
     }
 
-    function circlePoints(dataGroup, data, color, x, y, flavor, escapedFlavor, taskMeasurementNumber) {
-        var radius = 3;
-        var circleGroupName = escapedFlavor + "circleData" + taskMeasurementNumber;
+    function circlePoints(testData, data, color, flavor, escapedFlavor) {
+        let radius = 3;
+        let circleGroupName = escapedFlavor + "circleData" + testData.taskId;
         d3.select("." + circleGroupName).remove();
-        var circleGroup = dataGroup.append("g")
+        let circleGroup = testData.dataGroup.append("g")
             .attr("class", circleGroupName)
             .selectAll("circle")
             .data(data);
@@ -64,17 +101,18 @@ App.main = async function (applicationArguments) {
             })
             .attr("fill", color)
             .attr("r", radius)
-            .attr("cx", function (d) { return x(new Date(d.commitTime)); })
-            .attr("cy", function (d) { return y(+d.minTime) })
+            .attr("r", radius)
+            .attr("cx", function (d) { return testData.x(new Date(d.commitTime)); })
+            .attr("cy", function (d) { return testData.y(+d.minTime) })
             .append("title")
             .text(function (d) { return "Exact date: " + d.commitTime + "\n" + "Flavor: " + flavor + "\n" + "Result: " + +d.minTime + ` ${data[0].unit}`; });
 
     }
 
-    function plotVariable(dataGroup, color, data, x, y, flavor, taskMeasurementNumber) {
-        var className = flavor + taskMeasurementNumber;
+    function plotVariable(testData, data, color, flavor) {
+        let className = flavor + testData.taskId;
         d3.select("." + className).remove();
-        var lineGroup = dataGroup.append("g")
+        let lineGroup = testData.dataGroup.append("g")
             .selectAll("path")
             .data([data]);
 
@@ -83,12 +121,14 @@ App.main = async function (applicationArguments) {
             .append("path")
             .attr("class", className)
             .merge(lineGroup)
+            .transition()
+            .duration(1500)
             .attr("fill", "none")
             .attr("stroke", color)
             .attr("stroke-width", 1)
             .attr("d", d3.line().curve(d3.curveMonotoneX)
-                .x(function (d) { return x(new Date(d.commitTime)); })
-                .y(function (d) { return y(+d.minTime); })
+                .x(function (d) { return testData.x(new Date(d.commitTime)); })
+                .y(function (d) { return testData.y(+d.minTime); })
             );
     }
 
@@ -104,27 +144,30 @@ App.main = async function (applicationArguments) {
             .attr("y", yCoord);
     }
 
-    function addLegendBorder(dataGroup) {
+    /*function addLegendBorder(dataGroup) {
         var legend = dataGroup
             .append("div")
             .attr("width", 400)
             .attr("height", 400)
             .append("form")
             .attr("class", "chart-legend");
-
+ 
         legend
             .append("p")
             .html("Chart Legend");
         return legend;
-    }
+    }*/
 
-    function addLegendContent(legend, colors, flavors, taskMeasurementNumber, x, xAxis, y, yAxis, data, dataGroup) {
+    /*function addLegendContent(colors, flavors, testData) {
+
+        // { taskMeasurementNumber, x, xAxis, y, yAxis, data, dataGroup } = testData;
+
         for (var i = 0; i < flavors.length; i++) {
             var escapedFlavor = flavors[i].replaceAll(regex, '');
-            var lineClass = ".path " + escapedFlavor + taskMeasurementNumber;
+            var lineClass = ".path " + escapedFlavor + testData.taskMeasurementNumber;
             // var circleClass = ".path " + escapedFlavor + "circleData" + taskMeasurementNumber;
-            legend.append("br");
-            legend.append("input")
+            testData.legend.append("br");
+            testData.legend.append("input")
                 .attr("type", "checkbox")
                 .attr("checked", "true")
                 .attr("id", lineClass)
@@ -132,48 +175,47 @@ App.main = async function (applicationArguments) {
                     // should update on click
                     // update(dataGroup, updatedData, x, xAxis, y, yAxis, flavors, colors, taskMeasurementNumber);
                 });
-            legend.append("label")
+            testData.legend.append("label")
                 .attr("for", lineClass)
                 .style("color", colors[i])
                 .html(flavors[i]);
         }
 
-    }
+    }*/
 
-    function update(selection, data, x, xAxis, y, yAxis, flavors, colors, taskMeasurementNumber) {
-        x.domain(d3.extent(data, function (d) { return new Date(d.commitTime); }));
-        xAxis.transition().duration(1500).call(d3.axisBottom(x)
+    function update(testData, colors, flavors) {
+
+        testData.x.domain(d3.extent(testData.data, function (d) { return new Date(d.commitTime); }));
+        testData.xAxis.transition().duration(1500).call(d3.axisBottom(testData.x)
             .tickFormat(d3.timeFormat("%m/%d/%Y")));
 
-        y.domain(d3.extent(data, function (d) { return +d.minTime; }));
-        yAxis.transition().duration(1500).call(d3.axisLeft(y));
+        testData.y.domain(d3.extent(testData.data, function (d) { return +d.minTime; }));
+        testData.yAxis.transition().duration(1500).call(d3.axisLeft(testData.y));
 
-        var filteredData = mapByFlavor(data);
+        var filteredData = mapByFlavor(testData.data);
+
         d3.selectAll(".xAxis .tick text")
             .attr("transform", "rotate(-15)");
 
-        for (var i = 0; i < flavors.length; i++) {
-            var escapedFlavor = flavors[i].replaceAll(regex, '');
-            plotVariable(selection, colors[i], filteredData.get(flavors[i]), x, y, escapedFlavor, taskMeasurementNumber);
-            circlePoints(selection, filteredData.get(flavors[i]), colors[i], x, y, flavors[i], escapedFlavor, taskMeasurementNumber);
+        for (let i = 0; i < flavors.length; i++) {
+            let escapedFlavor = flavors[i].replaceAll(regex, '');
+            plotVariable(testData, filteredData.get(flavors[i]), colors[i], escapedFlavor);
+            circlePoints(testData, filteredData.get(flavors[i]), colors[i], flavors[i], escapedFlavor);
 
         }
     }
 
-    function buildGraph(allData, flavors, taskMeasurementNumber) {
+    function buildGraph(allData, flavors, colors, taskId) {
 
-        const width = 800 - margin.left - margin.right;
+        const width = 1000 - margin.left - margin.right;
         const height = 400 - margin.top - margin.bottom;
-
-        var startDate;
-        var endDate = new Date();
-
-        var data = getLastDaysData(allData, 14);
-        var collapsible = d3.select("#graphs")
+        let taskName = tasksIds[taskId];
+        let data = allData.filter(d => d.taskMeasurementName === taskName);
+        let collapsible = d3.select("#graphs")
             .append("details")
         collapsible.append("summary")
-            .html(data[0].taskMeasurementName);
-        var dataGroup = collapsible
+            .html(taskName);
+        let dataGroup = collapsible
             .append("div")
             .append("svg")
             .attr("width", width + margin.left + margin.right)
@@ -181,31 +223,33 @@ App.main = async function (applicationArguments) {
             .append("g")
             .attr("transform", `translate(${margin.left},${margin.top})`);
 
-        var colors = d3.schemeCategory10;
-
-        var x = d3.scaleTime()
+        let x = d3.scaleTime()
             .range([0, width])
             .nice();
 
-        var xAxis = dataGroup
+        let xAxis = dataGroup
             .append("g")
             .attr("class", "xAxis")
             .attr("transform", "translate(0, " + height + ")");
 
-        var y = d3.scaleLinear()
+        let y = d3.scaleLinear()
             .range([height, 0])
             .nice();
 
-        var yAxis = dataGroup
+        let yAxis = dataGroup
             .append("g")
             .attr("class", "yAxis");
 
-        var yLegendName = addSimpleText(dataGroup, - margin.left, - margin.top, "15pt", `Results (${data[0].unit})`, "black", -90);
-        var legend = addLegendBorder(collapsible);
-        addLegendContent(legend, colors, flavors, taskMeasurementNumber, x, xAxis, y, yAxis, data, dataGroup);
+        let yLegendName = addSimpleText(dataGroup, - margin.left, - margin.top, "15pt", `Results (${data[0].unit})`, "black", -90);
+        let testData = new TaskData(taskId, yLegendName, dataGroup, data, x, y, xAxis, yAxis);
+        testData.data = getLastDaysData(testData.allData, 14);
+        update(testData, colors, flavors);
+        return testData;
+    }
 
-        update(dataGroup, data, x, xAxis, y, yAxis, flavors, colors, taskMeasurementNumber);
-
+    function updateGraphs(testsData, flavors, colors, numTests = 28) {
+        let startDate = null;
+        let endDate = new Date();
         d3.selectAll("#startDate").on("change", function () {
             startDate = new Date(this.value);
         });
@@ -215,21 +259,34 @@ App.main = async function (applicationArguments) {
         });
 
         d3.selectAll("#submit").on("click", function () {
-            data = getResultsBetweenDates(allData, startDate, endDate);
-            update(dataGroup, data, x, xAxis, y, yAxis, flavors, colors, taskMeasurementNumber);
+            if (startDate === null) {
+                alert("Select start date!");
+            }
+            else if (startDate !== null) {
+                if (startDate.getTime() >= endDate.getTime()) {
+                    alert("Choose valid dates!");
+                } else {
+                    for (let i = 0; i < numTests; i++) {
+                        let curTest = testsData[i];
+                        curTest.data = getResultsBetweenDates(curTest.allData, startDate, endDate);
+                        update(curTest, colors, flavors);
+                    }
+                }
+            }
         });
-
     }
 
     const exports = await App.MONO.mono_wasm_get_assembly_exports("PerformanceTool.dll");
     const promise = exports.Program.loadData(measurementsUrl);
     var value = await promise;
-    var data = JSON.parse(value);
-    var flavors = getFlavors(data);
-    for (var i = 0; i < 28; i++) {
-        var testData = getWantedTestResults(data, i);
-        buildGraph(testData, flavors, i);
+    let data = JSON.parse(value);
+    let flavors = getFlavors(data);
+    let colors = d3.schemeCategory10;
+    let testsData = [];
+    for (let i = 0; i < 28; i++) {
+        testsData.push(buildGraph(data, flavors, colors, i));
     }
+    updateGraphs(testsData, flavors, colors);
     await App.MONO.mono_run_main("PerformanceTool.dll", applicationArguments);
 }
 
