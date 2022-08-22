@@ -4,39 +4,8 @@ App.main = async function (applicationArguments) {
     const regex = /[^a-zA-Z]/gi;
     const measurementsUrl = "https://raw.githubusercontent.com/radekdoulik/WasmPerformanceMeasurements/main/measurements/";
     const margin = { top: 60, right: 120, bottom: 80, left: 120 };
-    const tasksIds = {
-        0: "AppStart, Page show",
-        1: "AppStart, Reach managed",
-        2: "Exceptions, NoExceptionHandling",
-        3: "Exceptions, TryCatch",
-        4: "Exceptions, TryCatchThrow",
-        5: "Exceptions, TryCatchFilter",
-        6: "Exceptions, TryCatchFilterInline",
-        7: "Exceptions, TryCatchFilterThrow",
-        8: "Exceptions, TryCatchFilterThrowApplies",
-        9: "Json, non-ASCII text serialize",
-        10: "Json, non-ASCII text deserialize",
-        11: "Json, small serialize",
-        12: "Json, small deserialize",
-        13: "Json, large serialize",
-        14: "Json, large deserialize",
-        15: "Vector, Create Vector128",
-        16: "Vector, Add 2 Vector128's",
-        17: "Vector, Multiply 2 Vector128's",
-        18: "WebSocket, PartialSend_1B",
-        19: "WebSocket, PartialSend_64KB",
-        20: "WebSocket, PartialSend_1MB",
-        21: "WebSocket, PartialReceive_1B",
-        22: "WebSocket, PartialReceive_10KB",
-        23: "WebSocket, PartialReceive_100KB",
-        24: "Size, AppBundle",
-        25: "Size, managed",
-        26: "Size, dotnet.wasm",
-        27: "Size, icudt.dat",
-    };
-
     class TaskData {
-        constructor(taskId, legendName, dataGroup, allData, x, y, xAxis, yAxis) {
+        constructor(taskId, legendName, dataGroup, allData, flavors, x, y, xAxis, yAxis) {
             this.taskId = taskId;
             this.legendName = legendName;
             this.allData = allData;
@@ -45,9 +14,9 @@ App.main = async function (applicationArguments) {
             this.xAxis = xAxis;
             this.yAxis = yAxis;
             this.dataGroup = dataGroup;
-            this.startDate = null;
-            this.endDate = null;
             this.data = [];
+            this.hiddenData = [];
+            this.availableFlavors = flavors;
         }
     }
 
@@ -59,25 +28,25 @@ App.main = async function (applicationArguments) {
         return new Map(Object.entries(obj));
     }
 
-    function getFlavors(data) {
-        var set = new Set();
-        for (var i = 0; i < data.length; i++) {
-            set.add(data[i].flavor);
+    function getDataProperties(data, property) {
+        let set = new Set();
+        for (let i = 0; i < data.length; i++) {
+            set.add(data[i][property]);
         }
-        var keys = [...set];
+        let keys = [...set];
         return keys;
     }
 
     function getLastDaysData(data, numOfDays) {
         let timeDif = 1000 * 60 * 60 * 24 * numOfDays;
-        let lastTest = new Date(data[data.length - 1].commitTime);
-        let result = data.filter(x => new Date(x.commitTime) >= lastTest - timeDif);
+        let lastTest = data[data.length - 1].time;
+        let result = data.filter(x => x.time >= lastTest - timeDif);
         return result;
     }
 
     function getResultsBetweenDates(allData, startDate, endDate) {
         let result = allData.filter(function (d) {
-            let date = new Date(d.commitTime);
+            let date = d.time;
             return date.getTime() >= startDate.getTime()
                 && date.getTime() <= endDate.getTime();
         });
@@ -87,7 +56,6 @@ App.main = async function (applicationArguments) {
     function circlePoints(testData, data, color, flavor, escapedFlavor) {
         let radius = 3;
         let circleGroupName = escapedFlavor + "circleData" + testData.taskId;
-        d3.select("." + circleGroupName).remove();
         let circleGroup = testData.dataGroup.append("g")
             .attr("class", circleGroupName)
             .selectAll("circle")
@@ -102,16 +70,15 @@ App.main = async function (applicationArguments) {
             .attr("fill", color)
             .attr("r", radius)
             .attr("r", radius)
-            .attr("cx", function (d) { return testData.x(new Date(d.commitTime)); })
+            .attr("cx", function (d) { return testData.x(d.time); })
             .attr("cy", function (d) { return testData.y(+d.minTime) })
             .append("title")
             .text(function (d) { return "Exact date: " + d.commitTime + "\n" + "Flavor: " + flavor + "\n" + "Result: " + +d.minTime + ` ${data[0].unit}`; });
 
     }
 
-    function plotVariable(testData, data, color, flavor) {
-        let className = flavor + testData.taskId;
-        d3.select("." + className).remove();
+    function plotVariable(testData, data, color, escapedFlavor) {
+        let className = escapedFlavor + testData.taskId;
         let lineGroup = testData.dataGroup.append("g")
             .selectAll("path")
             .data([data]);
@@ -127,9 +94,10 @@ App.main = async function (applicationArguments) {
             .attr("stroke", color)
             .attr("stroke-width", 1)
             .attr("d", d3.line().curve(d3.curveMonotoneX)
-                .x(function (d) { return testData.x(new Date(d.commitTime)); })
+                .x(function (d) { return testData.x(d.time); })
                 .y(function (d) { return testData.y(+d.minTime); })
             );
+
     }
 
     function addSimpleText(dataGroup, xCoord, yCoord, textSize, text, color, rotation = 0) {
@@ -144,68 +112,87 @@ App.main = async function (applicationArguments) {
             .attr("y", yCoord);
     }
 
-    /*function addLegendBorder(dataGroup) {
-        var legend = dataGroup
-            .append("div")
-            .attr("width", 400)
-            .attr("height", 400)
-            .append("form")
-            .attr("class", "chart-legend");
- 
-        legend
-            .append("p")
-            .html("Chart Legend");
-        return legend;
-    }*/
-
-    /*function addLegendContent(colors, flavors, testData) {
-
-        // { taskMeasurementNumber, x, xAxis, y, yAxis, data, dataGroup } = testData;
-
-        for (var i = 0; i < flavors.length; i++) {
-            var escapedFlavor = flavors[i].replaceAll(regex, '');
-            var lineClass = ".path " + escapedFlavor + testData.taskMeasurementNumber;
-            // var circleClass = ".path " + escapedFlavor + "circleData" + taskMeasurementNumber;
-            testData.legend.append("br");
-            testData.legend.append("input")
+    function addLegendContent(testsData, flavors, ordinal, domName, numTests) {
+        let chartParagraph = d3.select(domName);
+        chartParagraph.append("h1").html("Chart Legend");
+        let selection = chartParagraph.append("div");
+        for (let i = 0; i < flavors.length; i++) {
+            let lineClass = flavors[i];
+            selection.append("br");
+            selection.append("input")
                 .attr("type", "checkbox")
                 .attr("checked", "true")
                 .attr("id", lineClass)
                 .on("click", function () {
-                    // should update on click
-                    // update(dataGroup, updatedData, x, xAxis, y, yAxis, flavors, colors, taskMeasurementNumber);
+                    if (this.checked === false) {
+                        for (let i = 0; i < numTests; i++) {
+                            let curTest = testsData[i];
+                            let flavorResults = curTest.data.filter(function (d) {
+                                return d.flavor === lineClass;
+                            });
+                            curTest.hiddenData = curTest.hiddenData.concat(flavorResults);
+                            curTest.data = curTest.data.filter(function (d) {
+                                return !flavorResults.includes(d);
+                            });
+                            curTest.availableFlavors.splice(curTest.availableFlavors.indexOf(lineClass), 1);
+                            update(curTest, flavors, ordinal);
+                        }
+                    } else {
+                        for (let i = 0; i < numTests; i++) {
+                            let curTest = testsData[i];
+                            let flavorResults = curTest.hiddenData.filter(function (d) {
+                                return d.flavor === lineClass;
+                            });
+                            curTest.data = curTest.data.concat(flavorResults);
+                            curTest.availableFlavors.push(lineClass);
+
+                            curTest.hiddenData = curTest.hiddenData.filter(function (d) {
+                                return !flavorResults.includes(d);
+                            });
+                            update(curTest, flavors, ordinal);
+                        }
+                    }
                 });
-            testData.legend.append("label")
+            selection.append("label")
                 .attr("for", lineClass)
-                .style("color", colors[i])
+                .style("color", ordinal(flavors[i]))
                 .html(flavors[i]);
         }
 
-    }*/
+    }
 
-    function update(testData, colors, flavors) {
+    function update(testData, flavors, ordinal) {
 
-        testData.x.domain(d3.extent(testData.data, function (d) { return new Date(d.commitTime); }));
+        testData.x.domain(d3.extent(testData.data, function (d) { return d.time }));
         testData.xAxis.transition().duration(1500).call(d3.axisBottom(testData.x)
             .tickFormat(d3.timeFormat("%m/%d/%Y")));
 
         testData.y.domain(d3.extent(testData.data, function (d) { return +d.minTime; }));
         testData.yAxis.transition().duration(1500).call(d3.axisLeft(testData.y));
 
-        var filteredData = mapByFlavor(testData.data);
-
         d3.selectAll(".xAxis .tick text")
             .attr("transform", "rotate(-15)");
 
-        for (let i = 0; i < flavors.length; i++) {
-            let escapedFlavor = flavors[i].replaceAll(regex, '');
-            plotVariable(testData, filteredData.get(flavors[i]), colors[i], escapedFlavor);
-            circlePoints(testData, filteredData.get(flavors[i]), colors[i], flavors[i], escapedFlavor);
+        var escapedFlavor = "";
 
+        for (let i = 0; i < flavors.length; i++) {
+            escapedFlavor = flavors[i].replaceAll(regex, '');
+            let className = escapedFlavor + testData.taskId;
+            d3.select("." + className).remove();
+            let circleGroupName = escapedFlavor + "circleData" + testData.taskId;
+            d3.select("." + circleGroupName).remove();
+        }
+
+        let filteredData = mapByFlavor(testData.data);
+        let flvs = testData.availableFlavors;
+        for (let i = 0; i < flvs.length; i++) {
+            escapedFlavor = flvs[i].replaceAll(regex, '');
+            plotVariable(testData, filteredData.get(flvs[i]), ordinal(flvs[i]), escapedFlavor);
+            circlePoints(testData, filteredData.get(flvs[i]), ordinal(flvs[i]), flvs[i], escapedFlavor);
         }
     }
 
-    function buildGraph(allData, flavors, colors, taskId) {
+    function buildGraph(allData, flavors, ordinal, taskId) {
 
         const width = 1000 - margin.left - margin.right;
         const height = 400 - margin.top - margin.bottom;
@@ -241,35 +228,42 @@ App.main = async function (applicationArguments) {
             .attr("class", "yAxis");
 
         let yLegendName = addSimpleText(dataGroup, - margin.left, - margin.top, "15pt", `Results (${data[0].unit})`, "black", -90);
-        let testData = new TaskData(taskId, yLegendName, dataGroup, data, x, y, xAxis, yAxis);
+        let testData = new TaskData(taskId, yLegendName, dataGroup, data, Array.from(flavors), x, y, xAxis, yAxis);
         testData.data = getLastDaysData(testData.allData, 14);
-        update(testData, colors, flavors);
+        update(testData, flavors, ordinal);
         return testData;
     }
 
-    function updateGraphs(testsData, flavors, colors, numTests = 28) {
+    function updateGraphs(testsData, flavors, ordinal, numTests) {
         let startDate = null;
-        let endDate = new Date();
-        d3.selectAll("#startDate").on("change", function () {
+        let endDate = null;
+
+        d3.select("#startDate").on("change", function () {
             startDate = new Date(this.value);
         });
 
-        d3.selectAll("#endDate").on("change", function () {
+        d3.select("#endDate").on("change", function () {
             endDate = new Date(this.value);
         });
 
-        d3.selectAll("#submit").on("click", function () {
+        d3.select("#submit").on("click", function () {
             if (startDate === null) {
                 alert("Select start date!");
             }
-            else if (startDate !== null) {
+            else if (startDate !== null && endDate !== null) {
                 if (startDate.getTime() >= endDate.getTime()) {
                     alert("Choose valid dates!");
                 } else {
                     for (let i = 0; i < numTests; i++) {
                         let curTest = testsData[i];
                         curTest.data = getResultsBetweenDates(curTest.allData, startDate, endDate);
-                        update(curTest, colors, flavors);
+                        curTest.hiddenData = curTest.data.filter(function (d) {
+                            return !curTest.availableFlavors.includes(d.flavor);
+                        });
+                        curTest.data = curTest.data.filter(function (d) {
+                            return curTest.availableFlavors.includes(d.flavor);
+                        });
+                        update(curTest, flavors, ordinal);
                     }
                 }
             }
@@ -280,13 +274,28 @@ App.main = async function (applicationArguments) {
     const promise = exports.Program.loadData(measurementsUrl);
     var value = await promise;
     let data = JSON.parse(value);
-    let flavors = getFlavors(data);
+    data.forEach(
+        function (d) {
+            d.time = new Date(d.commitTime);
+        }
+    );
+    let allFlavors = getDataProperties(data, 'flavor');
+    let tasksNames = getDataProperties(data, 'taskMeasurementName');
+    let numTests = tasksNames.length;
+    var tasksIds = new Map();
+    tasksNames.map(function (d, i) {
+        tasksIds[i] = d;
+    });
     let colors = d3.schemeCategory10;
+    let ordinal = d3.scaleOrdinal()
+        .domain(allFlavors)
+        .range(colors);
     let testsData = [];
-    for (let i = 0; i < 28; i++) {
-        testsData.push(buildGraph(data, flavors, colors, i));
+    for (let i = 0; i < numTests; i++) {
+        testsData.push(buildGraph(data, allFlavors, ordinal, i));
     }
-    updateGraphs(testsData, flavors, colors);
+    updateGraphs(testsData, allFlavors, ordinal, numTests);
+    addLegendContent(testsData, allFlavors, ordinal, "#chartLegend", numTests);
     await App.MONO.mono_run_main("PerformanceTool.dll", applicationArguments);
 }
 
