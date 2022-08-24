@@ -210,7 +210,7 @@ App.main = async function (applicationArguments) {
 
     function buildGraph(allData, flavors, taskId) {
 
-        const width = 800 - margin.left - margin.right;
+        const width = 1000 - margin.left - margin.right;
         const height = 400 - margin.top - margin.bottom;
         let taskName = tasksIds[taskId];
         let data = allData.filter(d => d.taskMeasurementName === taskName);
@@ -426,6 +426,7 @@ App.main = async function (applicationArguments) {
     }
     let datePresets = ["last week", "last 14 days", "last month", "last 3 months", "whole history"];
     let graphFilters = getContentFromFlavor(flavors);
+    graphFilters.sort();
     addSelectAllButton(flavors);
     addDatePresets("Date Presets", datePresets, "#dropdown", testsData, flavors);
     addGraphPresets("Flavor Presets", graphFilters, "#dropdown", testsData, flavors);
