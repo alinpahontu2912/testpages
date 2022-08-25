@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!--  Licensed to the .NET Foundation under one or more agreements. -->
+<!-- Licensed to the .NET Foundation under one or more agreements. -->
 <!-- The .NET Foundation licenses this file to you under the MIT license. -->
 <html>
 <head>
@@ -119,6 +119,9 @@
             <button type="submit" id="submit">Submit</button>
             <div class="dropdown" id="dropdown">
             </div>
+            <label for="flavorText">Flavor Regex:</label>
+            <input type="text" id="flavorText"><br><br>
+            <button type="submit" id="regexSubmit">Filter Flavors</button>
             <div id="chartLegend"></div>
             <button id="selectAll">Select All</button>
         </p>
@@ -131,8 +134,8 @@
     </div>
     <script>
         function w3_open() {
-            document.getElementById("mySidebar").style.width = "250px";
-            document.getElementById("charts").style.marginLeft = "250px";
+            document.getElementById("mySidebar").style.width = "300px";
+            document.getElementById("charts").style.marginLeft = "300px";
         }
 
         function w3_close() {
