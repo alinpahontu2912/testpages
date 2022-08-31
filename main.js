@@ -143,7 +143,7 @@ App.main = async function (applicationArguments) {
         let flavorsLen = flavors.length;
         for (let i = 0; i < flavorsLen; i++) {
             let lineClass = flavors[i];
-            let selection = chartParagraph.append("li");
+            let selection = chartParagraph.append("li").append("a");
             selection.append("input")
                 .attr("class", "form-check-input")
                 .attr("type", "checkbox")
@@ -243,8 +243,8 @@ App.main = async function (applicationArguments) {
 
     function buildGraph(allData, flavors, taskId) {
 
-        const width = 1000 - margin.left - margin.right;
-        const height = 400 - margin.top - margin.bottom;
+        const width = 1200 - margin.left - margin.right;
+        const height = 500 - margin.top - margin.bottom;
         let taskName = tasksIds[taskId];
         let [task, test] = taskName.split(",");
         let data = allData.filter(d => d.taskMeasurementName === taskName);
