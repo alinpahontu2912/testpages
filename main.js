@@ -108,7 +108,6 @@ App.main = async function (applicationArguments) {
         let lineGroup = testData.dataGroup.append("g")
             .selectAll("path")
             .data([data]);
-
         lineGroup
             .enter()
             .append("path")
@@ -213,7 +212,8 @@ App.main = async function (applicationArguments) {
         removeOldData(testData, flavors)
         let escapedFlavor = "";
         let filteredData = mapByFlavor(testData.data);
-        let flvs = testData.availableFlavors;
+        console.log(filteredData);
+        let flvs = [...filteredData.keys()]
         for (let i = 0; i < flvs.length; i++) {
             escapedFlavor = flvs[i].replaceAll(regex, '');
             plotVariable(testData, filteredData.get(flvs[i]), ordinal(flvs[i]), escapedFlavor);
@@ -230,6 +230,9 @@ App.main = async function (applicationArguments) {
     }
 
     function appendCollapsibles(domName, testsToTasks) {
+/*        let dataGroup = d3.select("#" + domName)
+            .append("div")
+            .attr("class", "accordion");*/
         let tasks = [...testsToTasks.keys()].sort();
         let tasksLen = testsToTasks.size;
         for (let i = 0; i < tasksLen; i++) {
@@ -238,6 +241,20 @@ App.main = async function (applicationArguments) {
                 .attr("id", tasks[i] + "collapsible");
             collapsible.append("summary")
                 .html(tasks[i]);
+/*            let taskAccordion = dataGroup
+                .append("div")
+                .attr("class", "accordion-item accordion-collapse")
+                .attr("id", "#" + tasks[i] + "accordion")
+                .append("h2")
+                .attr("class", "accordion-header")
+                .append("button")
+                .attr("class", "accordion-button")
+                .attr("data-bs-toggle", "collapse")
+                .attr("data-bs-target", "#" + tasks[i] + "accordion")
+                .html(tasks[i])
+                .append("div")
+                .attr("class", "accordion-body")
+                .attr("id", tasks[i] + "accordionBody")*/
         }
     }
 
@@ -248,6 +265,14 @@ App.main = async function (applicationArguments) {
         let taskName = tasksIds[taskId];
         let [task, test] = taskName.split(",");
         let data = allData.filter(d => d.taskMeasurementName === taskName);
+/*        let accordion = d3.select("#" + task + "accordionBody");
+        let dataGroup = accordion
+            .append("div")
+            .append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);*/
         let collapsible = d3.select("#" + task + "collapsible");
         let dataGroup = collapsible
             .append("div")
@@ -303,16 +328,6 @@ App.main = async function (applicationArguments) {
         }
     }
 
-    function addSelectAllButton(domName, flavors) {
-        d3.select("#" + domName).on("click", function () {
-            let filtersLen = flavors.length;
-            for (let i = 0; i < filtersLen; i++) {
-                if (document.getElementById(flavors[i]).checked === false) {
-                    document.getElementById(flavors[i]).click();
-                }
-            }
-        });
-    }
 
     function updateDataByFlavor(testsData, flavors, wantedFlavors) {
         updateCheckboxes(flavors, wantedFlavors);
@@ -455,9 +470,7 @@ App.main = async function (applicationArguments) {
     for (let i = 0; i < numTests; i++) {
         testsData.push(buildGraph(data, flavors, i));
     }
-
     addRegexText("regexSubmit");
-    //addSelectAllButton("selectAll", flavors);
     addPresets(datePresets, "datesPresets", testsData, flavors, datesPreset);
     addPresets(graphFilters, "flavorsPresets", testsData, flavors, flavorsPreset);
     addPresets([...testToTask.keys()].sort(), "chartsPresets", [], [], chartsPreset);

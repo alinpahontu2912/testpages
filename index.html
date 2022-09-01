@@ -15,27 +15,29 @@
 </head>
 <body>
     <main id="main">
-        <div class="flex-shrink-0 p-3 bg-white" style="width: 15%;">
+        <div class="flex-shrink-0 p-3 bg-white collapse collapse-horizontal show" style="width: 15%;" id="menu">
             <a class="d-flex align-items-center pb-3 mb-3 link-dark text-decoration-none border-bottom">
                 <span class="fs-5 fw-semibold">Menu</span>
             </a>
             <ul class="list-unstyled ps-0">
                 <li>
-                    <center>
-                        <label for="startDate">Start:</label>
-                        <input type="date" id="startDate">
-                        <label for="endDate">End:</label>
-                        <input type="date" id="endDate">
-                        <button class="btn align-items-center rounded collapsed" type="submit" id="submit">Pick Dates</button>
-                    </center>
+                    <div class="mb-3">
+                        <label for="startDate" class="form-label">Start</label>
+                        <input type="date" id="startDate" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label for="endDate" class="form-label">End</label>
+                        <input type="date" id="endDate" class="form-control">
+                    </div>
+                    <button class="btn btn-block btn-primary" type="submit" id="submit">Pick Dates</button>
                 </li>
                 <li class="border-top my-3"></li>
                 <li>
-                    <center>
-                        <label for="flavorText">Flavor Regex:</label>
-                        <input type="text" id="flavorText"><br><br>
-                        <button class="btn align-items-center rounded collapsed" type="submit" id="regexSubmit">Filter Flavors</button>
-                    </center>
+                    <div class="mb-3">
+                        <label for="text" class="form-label">Flavor Regex</label>
+                        <input type="text" id="flavorText" class="form-control">
+                    </div>
+                    <button class="btn btn-block btn-primary" type="submit" id="regexSubmit">Filter Flavors</button>
                 </li>
                 <li class="border-top my-3"></li>
                 <li class="mb-1">
@@ -77,11 +79,18 @@
                 </li>
             </ul>
         </div>
-
         <div class="b-example-divider"></div>
-
-        <div style="width:85%; overflow-x: hidden; overflow-y: auto; text-align: justify;" id="charts">
-            <center><h1>Tasks List</h1></center>
+        <div style="width:85%; overflow-x: hidden; overflow-y: auto; text-align: justify;" id="charts" class="p-3">
+            <div class="d-flex">
+                <div class="d-flex align-items-center pb-3 mb-3 link-dark text-decoration-none border-bottom">
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menu">
+                        ☰
+                    </button>
+                </div>
+                <a class="d-flex align-items-center pb-3 mb-3 link-dark text-decoration-none border-bottom flex-fill">
+                    <span class="fs-5 fw-semibold"> Tasks List</span>
+                </a>
+            </div>
             <div id="graphs"></div>
         </div>
     </main>
