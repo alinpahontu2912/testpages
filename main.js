@@ -230,9 +230,6 @@ App.main = async function (applicationArguments) {
     }
 
     function appendCollapsibles(domName, testsToTasks) {
-/*        let dataGroup = d3.select("#" + domName)
-            .append("div")
-            .attr("class", "accordion");*/
         let tasks = [...testsToTasks.keys()].sort();
         let tasksLen = testsToTasks.size;
         for (let i = 0; i < tasksLen; i++) {
@@ -241,38 +238,16 @@ App.main = async function (applicationArguments) {
                 .attr("id", tasks[i] + "collapsible");
             collapsible.append("summary")
                 .html(tasks[i]);
-/*            let taskAccordion = dataGroup
-                .append("div")
-                .attr("class", "accordion-item accordion-collapse")
-                .attr("id", "#" + tasks[i] + "accordion")
-                .append("h2")
-                .attr("class", "accordion-header")
-                .append("button")
-                .attr("class", "accordion-button")
-                .attr("data-bs-toggle", "collapse")
-                .attr("data-bs-target", "#" + tasks[i] + "accordion")
-                .html(tasks[i])
-                .append("div")
-                .attr("class", "accordion-body")
-                .attr("id", tasks[i] + "accordionBody")*/
         }
     }
 
     function buildGraph(allData, flavors, taskId) {
 
-        const width = 1200 - margin.left - margin.right;
+        const width = 1000 - margin.left - margin.right;
         const height = 500 - margin.top - margin.bottom;
         let taskName = tasksIds[taskId];
         let [task, test] = taskName.split(",");
         let data = allData.filter(d => d.taskMeasurementName === taskName);
-/*        let accordion = d3.select("#" + task + "accordionBody");
-        let dataGroup = accordion
-            .append("div")
-            .append("svg")
-            .attr("width", width + margin.left + margin.right)
-            .attr("height", height + margin.top + margin.bottom)
-            .append("g")
-            .attr("transform", `translate(${margin.left},${margin.top})`);*/
         let collapsible = d3.select("#" + task + "collapsible");
         let dataGroup = collapsible
             .append("div")
@@ -477,9 +452,9 @@ App.main = async function (applicationArguments) {
     addLegendContent(testsData, flavors, "chartLegend");
     updateOnDatePicker(testsData, flavors);
     datesPreset(testsData, flavors);
-
     document.querySelector("#loadingCircle").style.display = 'none';
     document.querySelector("#main").style.display = '';
+
 
     await App.MONO.mono_run_main("PerformanceTool.dll", applicationArguments);
 }
