@@ -239,18 +239,7 @@ App.main = async function (applicationArguments) {
         let brush = d3.brushX().on("end", brushed).extent([[margin.left, margin.top], [width + margin.right, height + margin.top]]);
         let brushArea = d3.select("#" + task + testData.taskId).append("g")
             .attr("class", "brush");
-
-        brushArea.on("dblclick", reset);
         brushArea.call(brush);
-
-        function reset() {
-            let startDate = document.getElementById('startDate').valueAsDate;
-            let endDate = document.getElementById('endDate').valueAsDate;
-            for (let i = 0; i < numTests; i++) {
-                updateDataOnDates(testsData[i], startDate, endDate);
-                updateGraph(testsData[i], flavors);
-            }
-        }
 
         function brushed() {
             let xCoords = d3.brushSelection(this);
@@ -264,6 +253,8 @@ App.main = async function (applicationArguments) {
                 let lastCommit = brushedData[brushedData.length - 1];
                 document.getElementById("firstCommit").value = firstCommit.commitHash;
                 document.getElementById("secondCommit").value = lastCommit.commitHash;
+                document.getElementById('startDate').valueAsDate = firstCommit.time;
+                document.getElementById('endDate').valueAsDate = lastCommit.time;
                 for (let i = 0; i < numTests; i++) {
                     updateDataOnDates(testsData[i], firstCommit.time, lastCommit.time);
                     updateGraph(testsData[i], flavors);
