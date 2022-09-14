@@ -546,9 +546,58 @@ App.main = async function (applicationArguments) {
         });
     }
 
-    /*    function addMarkDownButton(markdownButton, flavors) {
-            d3.select("#" +
-        }*/
+    function convertToMarkDown() {
+        let markDown = [];
+        let availableFlavors = testsData[0].availableFlavors;
+        let availableFlavorsLen = availableFlavors.length;
+        for (let i = 0; i < numTests; i++) {
+            let commits = [...mapByField(testsData[i].data, "commitHash").keys()];
+            let results = mapByField(testsData[i].data, "flavor");
+            let commitsLen = commits.length;
+            markDown.push("|");
+            markDown.push(tasksIds.get(i));
+            markDown.push(`(${commits[0].substring(0, 7)})`);
+            markDown.push("|");
+            for (let j = 1; j < commitsLen; j++) {
+                markDown.push(commits[j].substring(0, 7));
+                markDown.push("|");
+            }
+            markDown.push('\n');
+            for (let j = 0; j < commitsLen; j++) {
+                markDown.push("|-:");
+            }
+            markDown.push("|");
+            markDown.push('\n');
+            for (let j = 0; j < availableFlavorsLen; j++) {
+                markDown.push("|");
+                markDown.push(availableFlavors[j]);
+                markDown.push("|");
+                let rowData = results.get(availableFlavors[j]);
+                for (let k = 1; k < commitsLen; k++) {
+                    let wantedTest = rowData.find(function (d) {
+                        return d.commitHash === commits[k];
+                    });
+                    if (wantedTest !== undefined) {
+                        markDown.push(roundAccurately(wantedTest.percentage, 3).toString());
+                    } else {
+                        markDown.push("N/A");
+                    }
+                    markDown.push("|");
+                }
+                markDown.push('\n');
+            }
+            markDown.push('\n');
+        }
+        return markDown.join('');
+    }
+
+    function addMarkDownConverter(markdownButton) {
+        let dataLen = testsData[0].data.length;
+        let fileName = testsData[0].data[0].commitHash.substring(0, 7) + "..." + testsData[0].data[dataLen - 1].commitHash.substring(0, 7);
+        d3.select("#" + markdownButton)
+            .attr("href", URL.createObjectURL(new Blob([convertToMarkDown()], { type: 'text/plain' })))
+            .attr("download", `${fileName}.md`);
+    }
 
     function processData(data, flavors) {
         let tests = mapByField(data, "taskMeasurementName");
@@ -584,9 +633,9 @@ App.main = async function (applicationArguments) {
         tasksIds.set(i, d);
     });
     var greenShade = d3.scaleLinear().domain([0, 100])
-        .range(["lightgreen", "green"]);
+        .range(["white", "darkgreen"]);
     var redShade = d3.scaleLinear().domain([0, 100])
-        .range(["red", "darkred"]);
+        .range(["white", "darkred"]);
     processData(data, flavors);
     let colors = d3.schemeCategory10;
     var ordinal = d3.scaleOrdinal()
@@ -597,6 +646,7 @@ App.main = async function (applicationArguments) {
     for (let i = 0; i < numTests; i++) {
         testsData.push(buildGraph(data, flavors, i));
     }
+    console.log(data[0].toString());
     addRegexText("regexSubmit");
     addPresets(datePresets, "datesPresets", selectDatePreset);
     addPresets(graphFilters, "flavorsPresets", selectFlavorsPreset);
@@ -606,6 +656,7 @@ App.main = async function (applicationArguments) {
     selectDatePreset();
     addCommitDiffButton("commitsSubmit");
     createTable("modalBody", "tableButton");
+    addMarkDownConverter("markDownButton");
     document.querySelector("#loadingCircle").style.display = 'none';
     document.querySelector("#main").style.display = '';
     await App.MONO.mono_run_main("PerformanceTool.dll", applicationArguments);
