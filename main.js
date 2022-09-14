@@ -532,8 +532,9 @@ App.main = async function (applicationArguments) {
                         });
                         if (wantedTest !== undefined) {
                             row.append("td")
-                                .style("background-color", wantedTest.percentage >= 0 ? greenShade(wantedTest.percentage) : redShade(wantedTest.percentage))
-                                .attr("title", `Test Result:${wantedTest.minTime}`)
+                                .attr("class", "text-center")
+                                .style("background-color", wantedTest.percentage < 0 ? greenShade((-1) * wantedTest.percentage) : redShade(wantedTest.percentage))
+                                .attr("title", `Test Result: ${wantedTest.minTime}`)
                                 .html(`${roundAccurately(wantedTest.percentage, 3)} % `);
                         } else {
                             row.append("td")
@@ -545,7 +546,11 @@ App.main = async function (applicationArguments) {
         });
     }
 
-    function addEvolutionPercentages(data, flavors) {
+    /*    function addMarkDownButton(markdownButton, flavors) {
+            d3.select("#" +
+        }*/
+
+    function processData(data, flavors) {
         let tests = mapByField(data, "taskMeasurementName");
         for (let i = 0; i < numTests; i++) {
             let task = tests.get(tasksIds.get(i));
@@ -554,8 +559,10 @@ App.main = async function (applicationArguments) {
                 let curTest = flavorTests.get(flavors[j]);
                 let curTestLength = curTest.length;
                 curTest[0].percentge = 0;
+                curTest[0].time = new Date(curTest[0].commitTime);
                 for (let k = 1; k < curTestLength; k++) {
-                    curTest[k].percentage = (curTest[k - 1].minTime - curTest[k].minTime) / curTest[k - 1].minTime * 100;
+                    curTest[k].time = new Date(curTest[k].commitTime);
+                    curTest[k].percentage = (-1) * (curTest[k - 1].minTime - curTest[k].minTime) / curTest[k - 1].minTime * 100;
                 }
             }
         }
@@ -565,10 +572,6 @@ App.main = async function (applicationArguments) {
     const promise = exports.Program.loadData(measurementsUrl);
     var value = await promise;
     let data = JSON.parse(value);
-    let dataLen = data.length;
-    for (let i = 0; i < dataLen; i++) {
-        data[i].time = new Date(data[i].commitTime);
-    }
     let flavors = getDataProperties(data, "flavor");
     let testNames = getDataProperties(data, "taskMeasurementName");
     let datePresets = ["last week", "last 14 days", "last month", "last 3 months", "whole history"];
@@ -584,7 +587,7 @@ App.main = async function (applicationArguments) {
         .range(["lightgreen", "green"]);
     var redShade = d3.scaleLinear().domain([0, 100])
         .range(["red", "darkred"]);
-    addEvolutionPercentages(data, flavors);
+    processData(data, flavors);
     let colors = d3.schemeCategory10;
     var ordinal = d3.scaleOrdinal()
         .domain(flavors)
@@ -602,7 +605,6 @@ App.main = async function (applicationArguments) {
     addDatePickers("startDate", "endDate", "submit");
     selectDatePreset();
     addCommitDiffButton("commitsSubmit");
-
     createTable("modalBody", "tableButton");
     document.querySelector("#loadingCircle").style.display = 'none';
     document.querySelector("#main").style.display = '';
