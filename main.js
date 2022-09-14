@@ -546,7 +546,26 @@ App.main = async function (applicationArguments) {
         });
     }
 
-    function convertToMarkDown() {
+
+    function getWantedData(taskNames) {
+        let tasksLen = taskNames.length;
+        let neededData = [];
+        for (let i = 0; i < tasksLen; i++) {
+            let isOpen = document.getElementById(taskNames[i] + "collapsible").open;
+            if (isOpen) {
+                let wantedTests = testsData.filter(function (d) {
+                    d.taskMeasurementName.includes(taskNames[i]);
+                });
+                neededData.concat(wantedTests);
+            }
+        }
+        return neededData;
+    }
+
+    function convertToMarkDown(taskNames) {
+        console.log(taskNames);
+        let data = getWantedData(taskNames);
+        console.log(data);
         let markDown = [];
         let availableFlavors = testsData[0].availableFlavors;
         let availableFlavorsLen = availableFlavors.length;
@@ -591,11 +610,11 @@ App.main = async function (applicationArguments) {
         return markDown.join('');
     }
 
-    function addMarkDownConverter(markdownButton) {
+    function addMarkDownConverter(markdownButton, taskNames) {
         let dataLen = testsData[0].data.length;
         let fileName = testsData[0].data[0].commitHash.substring(0, 7) + "..." + testsData[0].data[dataLen - 1].commitHash.substring(0, 7);
         d3.select("#" + markdownButton)
-            .attr("href", URL.createObjectURL(new Blob([convertToMarkDown()], { type: 'text/plain' })))
+            .attr("href", URL.createObjectURL(new Blob([convertToMarkDown(taskNames)], { type: 'text/plain' })))
             .attr("download", `${fileName}.md`);
     }
 
@@ -656,7 +675,7 @@ App.main = async function (applicationArguments) {
     selectDatePreset();
     addCommitDiffButton("commitsSubmit");
     createTable("modalBody", "tableButton");
-    addMarkDownConverter("markDownButton");
+    addMarkDownConverter("markDownButton", [...testToTask.keys()].sort());
     document.querySelector("#loadingCircle").style.display = 'none';
     document.querySelector("#main").style.display = '';
     await App.MONO.mono_run_main("PerformanceTool.dll", applicationArguments);
