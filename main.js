@@ -5,7 +5,7 @@ App.main = async function (applicationArguments) {
     const regex = /[^a-zA-Z]/gi;
     const measurementsUrl = "https://raw.githubusercontent.com/radekdoulik/WasmPerformanceMeasurements/main/measurements/";
     const margin = { top: 60, right: 120, bottom: 80, left: 120 };
-    const width = screen.width * 0.9 - margin.left - margin.right;
+    const width = screen.width * 0.75 - margin.left - margin.right;
     const height = 500 - margin.top - margin.bottom;
     class TaskData {
         constructor(taskId, legendName, dataGroup, allData, flavors, x, y, xAxis, xGrid, yGrid, yAxisLeft, yAxisRight) {
@@ -545,7 +545,6 @@ App.main = async function (applicationArguments) {
             }
         });
     }
-
 
     function getWantedData(taskNames) {
         let tasksLen = taskNames.length;
