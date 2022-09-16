@@ -5,7 +5,7 @@ App.main = async function (applicationArguments) {
     const regex = /[^a-zA-Z]/gi;
     const measurementsUrl = "https://raw.githubusercontent.com/radekdoulik/WasmPerformanceMeasurements/main/measurements/";
     const margin = { top: 60, right: 120, bottom: 80, left: 120 };
-    const width = screen.width * 0.75 - margin.left - margin.right;
+    const width = screen.width * 0.8 - margin.left - margin.right;
     const height = 500 - margin.top - margin.bottom;
     class TaskData {
         constructor(taskId, legendName, dataGroup, allData, flavors, x, y, xAxis, xGrid, yGrid, yAxisLeft, yAxisRight) {
@@ -188,7 +188,7 @@ App.main = async function (applicationArguments) {
                 .attr("class", "form-check-label")
                 .attr("for", lineClass)
                 .style("color", ordinal(flavors[i]))
-                .html(flavors[i])
+                .html(flavors[i]);
         }
         let selection = chartParagraph.append("li");
         selection.append("button")
@@ -493,15 +493,18 @@ App.main = async function (applicationArguments) {
         });
     }
 
-    function createTable(modalName, tableButton) {
+    function createTable(modalName, tableButton, taskNames) {
+
         d3.select("#" + tableButton).on("click", function () {
             d3.select(".table").remove();
             let table = d3.select("#" + modalName).append("table")
                 .attr("id", "table")
                 .attr("class", "table table-hover table-bordered");
-            for (let i = 0; i < numTests; i++) {
-                let commits = [...mapByField(testsData[i].data, "commitHash").keys()];
-                let results = mapByField(testsData[i].data, "flavor");
+            let wantedData = getWantedData(taskNames);
+            let testsLen = wantedData.length;
+            for (let i = 0; i < testsLen; i++) {
+                let commits = [...mapByField(wantedData[i].data, "commitHash").keys()];
+                let results = mapByField(wantedData[i].data, "flavor");
                 let commitsLen = commits.length;
                 let tableHead = table.append("thead")
                     .attr("class", "thead-dark text-center")
@@ -509,17 +512,17 @@ App.main = async function (applicationArguments) {
                 tableHead.append("th")
                     .attr("scope", "col")
                     .attr("class", "text-center")
-                    .html(tasksIds.get(i) + ` (${commits[0].substring(0, 7)})`);
+                    .html(tasksIds.get(wantedData[i].taskId) + ` (${commits[0].substring(0, 7)})`);
                 for (let j = 1; j < commitsLen; j++) {
                     tableHead.append("th")
                         .attr("scope", "col")
                         .attr("class", "text-center")
                         .html(commits[j].substring(0, 7));
                 }
-                let flavorsLen = testsData[i].availableFlavors.length;
+                let flavorsLen = wantedData[i].availableFlavors.length;
                 let tableBody = table.append("tbody");
                 for (let j = 0; j < flavorsLen; j++) {
-                    let flavor = testsData[i].availableFlavors[j];
+                    let flavor = wantedData[i].availableFlavors[j];
                     let row = tableBody.append("tr");
                     row.append("th")
                         .attr("class", "text-center")
@@ -551,70 +554,78 @@ App.main = async function (applicationArguments) {
         let neededData = [];
         for (let i = 0; i < tasksLen; i++) {
             let isOpen = document.getElementById(taskNames[i] + "collapsible").open;
-            if (isOpen) {
+            if (isOpen === true) {
                 let wantedTests = testsData.filter(function (d) {
-                    d.taskMeasurementName.includes(taskNames[i]);
+                    return tasksIds.get(d.taskId).includes(taskNames[i]);
                 });
-                neededData.concat(wantedTests);
+                neededData = neededData.concat(wantedTests);
             }
         }
         return neededData;
     }
 
-    function convertToMarkDown(taskNames) {
-        console.log(taskNames);
-        let data = getWantedData(taskNames);
-        console.log(data);
+    function download(filename, text) {
+        var element = document.createElement('a');
+        element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+        element.setAttribute('download', filename);
+        element.style.display = 'none';
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
+    }
+
+    function createMarkdown(taskNames) {
+        let wantedData = getWantedData(taskNames);
         let markDown = [];
-        let availableFlavors = testsData[0].availableFlavors;
-        let availableFlavorsLen = availableFlavors.length;
-        for (let i = 0; i < numTests; i++) {
-            let commits = [...mapByField(testsData[i].data, "commitHash").keys()];
-            let results = mapByField(testsData[i].data, "flavor");
-            let commitsLen = commits.length;
-            markDown.push("|");
-            markDown.push(tasksIds.get(i));
-            markDown.push(`(${commits[0].substring(0, 7)})`);
-            markDown.push("|");
-            for (let j = 1; j < commitsLen; j++) {
-                markDown.push(commits[j].substring(0, 7));
+        let testsLen = wantedData.length;
+        if (testsLen > 0) {
+            let availableFlavors = wantedData[0].availableFlavors;
+            let availableFlavorsLen = availableFlavors.length;
+            for (let i = 0; i < testsLen; i++) {
+                let commits = [...mapByField(wantedData[i].data, "commitHash").keys()];
+                let results = mapByField(wantedData[i].data, "flavor");
+                let commitsLen = commits.length;
                 markDown.push("|");
-            }
-            markDown.push('\n');
-            for (let j = 0; j < commitsLen; j++) {
-                markDown.push("|-:");
-            }
-            markDown.push("|");
-            markDown.push('\n');
-            for (let j = 0; j < availableFlavorsLen; j++) {
+                markDown.push(tasksIds.get(wantedData[i].taskId));
+                markDown.push(`(${commits[0].substring(0, 7)})`);
                 markDown.push("|");
-                markDown.push(availableFlavors[j]);
-                markDown.push("|");
-                let rowData = results.get(availableFlavors[j]);
-                for (let k = 1; k < commitsLen; k++) {
-                    let wantedTest = rowData.find(function (d) {
-                        return d.commitHash === commits[k];
-                    });
-                    if (wantedTest !== undefined) {
-                        markDown.push(roundAccurately(wantedTest.percentage, 3).toString());
-                    } else {
-                        markDown.push("N/A");
-                    }
+                for (let j = 1; j < commitsLen; j++) {
+                    markDown.push(commits[j].substring(0, 7));
                     markDown.push("|");
                 }
                 markDown.push('\n');
+                for (let j = 0; j < commitsLen; j++) {
+                    markDown.push("|-:");
+                }
+                markDown.push("|");
+                markDown.push('\n');
+                for (let j = 0; j < availableFlavorsLen; j++) {
+                    markDown.push("|");
+                    markDown.push(availableFlavors[j]);
+                    markDown.push("|");
+                    let rowData = results.get(availableFlavors[j]);
+                    for (let k = 1; k < commitsLen; k++) {
+                        let wantedTest = rowData.find(function (d) {
+                            return d.commitHash === commits[k];
+                        });
+                        if (wantedTest !== undefined) {
+                            markDown.push(roundAccurately(wantedTest.percentage, 3).toString() + "%");
+                        } else {
+                            markDown.push("N/A");
+                        }
+                        markDown.push("|");
+                    }
+                    markDown.push('\n');
+                }
+                markDown.push('\n');
             }
-            markDown.push('\n');
+            let firstCommit = wantedData[0].data[0].commitHash.substring(0, 7);
+            let endCommit = wantedData[testsLen - 1].data[wantedData[testsLen - 1].data.length - 1].commitHash.substring(0, 7);
+            let filename = firstCommit.substring(0, 7) + "..." + endCommit.substring(0, 7) + ".md";
+            return [filename, markDown.join('')];
+        } else {
+            alert("No data selected");
         }
-        return markDown.join('');
-    }
-
-    function addMarkDownConverter(markdownButton, taskNames) {
-        let dataLen = testsData[0].data.length;
-        let fileName = testsData[0].data[0].commitHash.substring(0, 7) + "..." + testsData[0].data[dataLen - 1].commitHash.substring(0, 7);
-        d3.select("#" + markdownButton)
-            .attr("href", URL.createObjectURL(new Blob([convertToMarkDown(taskNames)], { type: 'text/plain' })))
-            .attr("download", `${fileName}.md`);
     }
 
     function processData(data, flavors) {
@@ -643,7 +654,6 @@ App.main = async function (applicationArguments) {
     let testNames = getDataProperties(data, "taskMeasurementName");
     let datePresets = ["last week", "last 14 days", "last month", "last 3 months", "whole history"];
     let graphFilters = getContentFromFlavor(flavors);
-    var firstDate = getFirstTestDate(data);
     var numTests = testNames.length;
     var tasksIds = new Map();
     const testToTask = mapTestsToTasks(testNames);
@@ -655,6 +665,7 @@ App.main = async function (applicationArguments) {
     var redShade = d3.scaleLinear().domain([0, 100])
         .range(["white", "darkred"]);
     processData(data, flavors);
+    var firstDate = getFirstTestDate(data);
     let colors = d3.schemeCategory10;
     var ordinal = d3.scaleOrdinal()
         .domain(flavors)
@@ -664,7 +675,6 @@ App.main = async function (applicationArguments) {
     for (let i = 0; i < numTests; i++) {
         testsData.push(buildGraph(data, flavors, i));
     }
-    console.log(data[0].toString());
     addRegexText("regexSubmit");
     addPresets(datePresets, "datesPresets", selectDatePreset);
     addPresets(graphFilters, "flavorsPresets", selectFlavorsPreset);
@@ -673,8 +683,11 @@ App.main = async function (applicationArguments) {
     addDatePickers("startDate", "endDate", "submit");
     selectDatePreset();
     addCommitDiffButton("commitsSubmit");
-    createTable("modalBody", "tableButton");
-    addMarkDownConverter("markDownButton", [...testToTask.keys()].sort());
+    createTable("modalBody", "tableButton", [...testToTask.keys()].sort());
+    document.getElementById("markDownButton").addEventListener("click", function () {
+        let [filename, text] = createMarkdown([...testToTask.keys()].sort());
+        download(filename, text);
+    });
     document.querySelector("#loadingCircle").style.display = 'none';
     document.querySelector("#main").style.display = '';
     await App.MONO.mono_run_main("PerformanceTool.dll", applicationArguments);
